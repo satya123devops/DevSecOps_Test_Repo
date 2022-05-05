@@ -10,5 +10,9 @@ jobs:
     steps:
       - name: 'Checkout Repository'
         uses: actions/checkout@v3
-      - name: 'Dependency Review'
+      - name: Dependency Review
         uses: actions/dependency-review-action@v1
+        with:
+          # Token for the repository. Can be passed in using `{{ secrets.GITHUB_TOKEN }}`.
+          repo-token: ${{ secrets.API_TOKEN }}
+          
