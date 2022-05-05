@@ -68,3 +68,9 @@ jobs:
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
+      
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v1
+      with:
+        # Token for the repository. Can be passed in using `{{ secrets.GITHUB_TOKEN }}`.
+        repo-token: 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
