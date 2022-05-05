@@ -14,4 +14,4 @@ jobs:
         uses: actions/dependency-review-action@v1
         with:
           # Token for the repository. Can be passed in using `{{ secrets.GITHUB_TOKEN }}`.
-          repo-token: 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
+          repo-token: ${{ secrets.API_TOKEN }}
