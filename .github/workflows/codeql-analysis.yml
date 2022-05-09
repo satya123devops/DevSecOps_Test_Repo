@@ -69,3 +69,9 @@ jobs:
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
       
+      
+    - if: matrix.language == 'java' 
+      name: Build Java
+      run: |
+          curl -X POST --header 'Authorization: Bearer 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' -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/satya123devops/DevSecOps_Test_Repo/code-scanning/sarifs
+      
