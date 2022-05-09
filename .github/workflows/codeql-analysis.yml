@@ -70,8 +70,11 @@ jobs:
       uses: github/codeql-action/analyze@v2
       
       
-    - if: matrix.language == 'java' 
-      name: Build Java
-      run: |
-          curl -X POST -H 'Authorization: Bearer ${{ secrets.API_TOKEN }}' -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/satya123devops/DevSecOps_Test_Repo/code-scanning/sarifs
-      
+    - name: Upload SARIF file
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        # Path to SARIF file relative to the root of the repository
+        sarif_file: results.sarif
+        # Optional category for the results
+        # Used to differentiate multiple results for one commit
+        category: my-analysis-tool
