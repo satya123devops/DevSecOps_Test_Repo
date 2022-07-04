@@ -1,59 +1,80 @@
 AWSTemplateFormatVersion: 2010-09-09
+Description: CI/CD pipeline for Github projects
+Parameters:
+  GitHubOwner:
+    Type: String
+    AllowedPattern: '[A-Za-z0-9-]+'
+    Default: satya123devops
+  GitHubRepository:
+    Type: String
+    AllowedPattern: '[A-Za-z0-9-]+'
+    Default: DevSecOps-Test-Repo
+  GitHubBranch:
+    Type: String
+    AllowedPattern: '[A-Za-z0-9-]+'
+    Default: master
 Resources:
   CodeBuildServiceRole:
     Type: 'AWS::IAM::Role'
     Properties:
-        AssumeRolePolicyDocument:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Effect: Allow
-                Principal:
-                  Service: codebuild.amazonaws.com
-                Action: 'sts:AssumeRole'
-        Policies:
-          - PolicyName: root
-            PolicyDocument:
-              Version: 2012-10-17
-              Statement:
-                - Sid: CloudWatchLogsPolicy
-                  Effect: Allow
-                  Action:
-                    - 'logs:CreateLogGroup'
-                    - 'logs:CreateLogStream'
-                    - 'logs:PutLogEvents'
-                  Resource: '*'
-                - Sid: S3GetObjectPolicy
-                  Effect: Allow
-                  Action:
-                    - 's3:GetObject'
-                    - 's3:GetObjectVersion'
-                  Resource: '*'
-                - Sid: S3PutObjectPolicy
-                  Effect: Allow
-                  Action:
-                    - 's3:PutObject'
-                  Resource: '*'
-                - Sid: S3BucketIdentity
-                  Effect: Allow
-                  Action:
-                    - 's3:GetBucketAcl'
-                    - 's3:GetBucketLocation'
-                  Resource: '*'
+              - Sid: CloudWatchLogsPolicy
+                Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+              - Sid: S3GetObjectPolicy
+                Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                Resource: '*'
+              - Sid: S3PutObjectPolicy
+                Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                Resource: '*'
+              - Sid: S3BucketIdentity
+                Effect: Allow
+                Action:
+                  - 's3:GetBucketAcl'
+                  - 's3:GetBucketLocation'
+                Resource: '*'
+              - Sid: Lambda
+                Effect: Allow
+                Action: 
+                  - 'lambda:InvokeFunction'
+                Resource: '*'
   CodeBuildSourceCredential:
-      Type: AWS::CodeBuild::SourceCredential
-      Properties:
-          AuthType: PERSONAL_ACCESS_TOKEN
-          ServerType: GITHUB
-          Token: "{{resolve:secretsmanager:GITHUB_ACCESS:SecretString:GITHUB_ACCESS_TOKEN}}"
-        
+    Type: 'AWS::CodeBuild::SourceCredential'  
+    Properties:
+      AuthType: PERSONAL_ACCESS_TOKEN
+      ServerType: GITHUB
+      Token: >-
+        {{resolve:secretsmanager:GITHUB_ACCESS:SecretString:GITHUB_ACCESS_TOKEN}}
   CodeBuildProject:
     Type: 'AWS::CodeBuild::Project'
     Properties:
       Name: !Ref 'AWS::StackName'
-      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      ServiceRole: !GetAtt 
+        - CodeBuildServiceRole
+        - Arn
       Source:
         Type: GITHUB
-        Location: 'https://github.com/satya123devops/DevSecOps_Test_Repo.git'
+        Location: !Sub 'https://github.com/${GitHubOwner}/${GitHubRepository}.git'
         BuildSpec: buildspec.yml
         Auth:
           Type: OAUTH
@@ -63,12 +84,160 @@ Resources:
       Triggers:
         Webhook: true
         FilterGroups:
-            - - Type: EVENT
-                Pattern: PULL_REQUEST_CREATED, PULL_REQUEST_UPDATED, PUSH
-              - Type: BASE_REF
-                Pattern: !Sub ^refs/heads/master$
+          - - Type: EVENT
+              Pattern: PUSH
+            - Type: HEAD_REF
+              Pattern: !Sub '^refs/heads/${GitHubBranch}$'
       Environment:
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/standard:4.0
-  
+        Image: 'aws/codebuild/standard:4.0'
+  CodePipelineServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: CloudWatchLogsPolicy
+                Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+              - Sid: S3GetObjectPolicy
+                Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                Resource: '*'
+              - Sid: S3PutObjectPolicy
+                Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                Resource: '*'
+              - Sid: S3BucketIdentity
+                Effect: Allow
+                Action:
+                  - 's3:GetBucketAcl'
+                  - 's3:GetBucketLocation'
+                Resource: '*'
+              - Sid: CodeBuildPolicy
+                Effect: Allow
+                Action:
+                  - 'codebuild:BatchGetBuilds'
+                  - 'codebuild:StartBuild'
+                Resource: '*'
+              - Sid: LambdaPolicy
+                Action:
+                  - 'lambda:InvokeFunction'
+                Resource: '*'
+                Effect: Allow
+              - Sid: CloudWatchLogs
+                Action:
+                  - 'logs:*'
+                Effect: Allow
+                Resource: '*'
+              - Sid: LambdaPutJobResults
+                Action:
+                  - 'codepipeline:PutJobSuccessResult'
+                  - 'codepipeline:PutJobFailureResult'
+                Effect: Allow
+                Resource: '*'
+              - Sid: S3FullAccess
+                Action:
+                  - 's3:*'
+                Effect: Allow
+                Resource: '*'
+  CodePipelineArtifactStore:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+  CodePipelineWebhook:
+    Type: 'AWS::CodePipeline::Webhook'
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: >-
+          {{resolve:secretsmanager:GITHUB_ACCESS:SecretString:GITHUB_ACCESS_TOKEN}}
+      RegisterWithThirdParty: 'true'
+      Filters:
+        - JsonPath: $.ref
+          MatchEquals: 'refs/heads/{Branch}'
+        - JsonPath: $.repository.name
+          MatchEquals: '{Repo}'
+      TargetPipeline: !Ref CodePipeline
+      TargetAction: Source
+      TargetPipelineVersion: !GetAtt 
+        - CodePipeline
+        - Version
+  CodePipeline:
+    Type: 'AWS::CodePipeline::Pipeline'
+    Properties:
+      Name: !Ref 'AWS::StackName'
+      RoleArn: !GetAtt 
+        - CodePipelineServiceRole
+        - Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref CodePipelineArtifactStore
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: 1
+                Provider: GitHub
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref GitHubRepository
+                Branch: !Ref GitHubBranch
+                PollForSourceChanges: false
+                OAuthToken: >-
+                  {{resolve:secretsmanager:GITHUB_ACCESS:SecretString:GITHUB_ACCESS_TOKEN}}
+              OutputArtifacts:
+                - Name: SourceCode
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              OutputArtifacts:
+                - Name: BuildOutput
+              InputArtifacts:
+                - Name: SourceCode
+        - Name: CodeqlAnalysis
+          Actions:
+            - Name: CodeqlAnalysis
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: 1
+              Configuration:
+                FunctionName: Codeql-Test
+                UserParameters: '{"pipelineName": "github-aws-cicd", "apiEndpoint": "https://api.github.com/repos/satya123devops"}'
+              OutputArtifacts:
+                - Name: LambdaOutput
+              InputArtifacts:
+                - Name: BuildOutput
+       
+
+
