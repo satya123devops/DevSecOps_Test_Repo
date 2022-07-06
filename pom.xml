@@ -8,8 +8,6 @@
     <packaging>war</packaging>
     <name>dvja</name>
          
-         
-
     <properties>
         <struts2.version>2.3.30</struts2.version>
         <log4j2.version>2.3</log4j2.version>
