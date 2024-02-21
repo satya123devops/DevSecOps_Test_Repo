@@ -1,2 +1,2 @@
-@Library('my-shared-library@1.0') _
+@Library('JenkinSharedLibrary') _
 def var = checkout('test')
